@@ -1,5 +1,6 @@
 package com.dolu.mobibus.core.ui.home;
 
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -12,6 +13,8 @@ import com.dolu.mobibus.core.domain.use_case.GetBusTicketInfos
 import com.dolu.mobibus.core.domain.use_case.GetUserUseCase
 import com.dolu.mobibus.core.domain.use_case.UpdateUserCartContent
 import com.dolu.mobibus.core.util.NetworkResource
+import com.dolu.mobibus.feature_order.util.PaymentStatus
+import com.dolu.mobibus.feature_order.util.parseBundleToPaymentResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -31,8 +34,8 @@ class HomeViewModel @Inject constructor(
     private val _currentUser = mutableStateOf(User())
     val currentUser: State<User> = _currentUser
 
-    private val _selectedTicket = mutableStateOf(emptyList<BusTicket>())
-    val selectedTicket: State<List<BusTicket>> = _selectedTicket
+    private val _paymentTicket = mutableStateOf(PaymentTicketState())
+    val paymentTicket: State<PaymentTicketState> = _paymentTicket
 
     private val _eventFlow = MutableSharedFlow<UIEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
@@ -110,6 +113,27 @@ class HomeViewModel @Inject constructor(
                 HomeScreenEvent.ValidateOrder -> {
                     _eventFlow.emit(UIEvent.ValidateOrder)
                 }
+                is HomeScreenEvent.OnPaymentResponse -> {
+                    val parsedResponse = parseBundleToPaymentResponse(event.paymentResponseBundle)
+                    when (parsedResponse.status) {
+                        PaymentStatus.OK -> {
+                            _eventFlow.emit(UIEvent.ShowPaymentTicket(parsedResponse.clientTicket))
+                            _paymentTicket.value = PaymentTicketState(parsedResponse.transactionId, parsedResponse.clientTicket)
+                            launch(Dispatchers.IO) {
+                                Log.v("HomeScreenVM", "will clear cart")
+                                updateUserCartContent.clearUserCart()
+                                getActiveUser()
+                            }
+                        }
+                        PaymentStatus.Unknown -> {
+                            _eventFlow.emit(UIEvent.ShowSnackbar("The payment failed, please retry later"))
+                        }
+                    }
+
+                }
+                is HomeScreenEvent.NewPaymentTicketAvailable -> {
+
+                }
             }
         }
     }
@@ -130,5 +154,7 @@ class HomeViewModel @Inject constructor(
     sealed class UIEvent {
         object ValidateOrder : UIEvent()
         data class ShowSnackbar(val message: String): UIEvent()
+        data class ShowPaymentTicket(val message: String): UIEvent()
     }
+
 }

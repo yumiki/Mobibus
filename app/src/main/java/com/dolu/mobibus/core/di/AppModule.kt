@@ -47,15 +47,30 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGetUserUseCase(repository: CoreRepository): GetUserUseCase {
-        return GetUserUseCase(repository)
+    fun provideClearUserCartUseCase(repository: CoreRepository): ClearUserCart {
+        return ClearUserCart(repository)
     }
 
     @Provides
     @Singleton
-    fun provideUpdateCartContentUseCase(addTicketToUserCart: AddTicketToUserCart, removeTicketFromUserCart: RemoveTicketFromUserCart): UpdateUserCartContent {
-        return UpdateUserCartContent(addTicketToUserCart, removeTicketFromUserCart)
+    fun provideUpdateCartContentUseCase(
+        addTicketToUserCart: AddTicketToUserCart,
+        removeTicketFromUserCart: RemoveTicketFromUserCart,
+        clearUserCart: ClearUserCart
+    ): UpdateUserCartContent {
+        return UpdateUserCartContent(
+            addTicketToUserCart,
+            removeTicketFromUserCart,
+            clearUserCart
+        )
     }
+
+    @Provides
+    @Singleton
+    fun provideGetUserUseCase(repository: CoreRepository): GetUserUseCase {
+        return GetUserUseCase(repository)
+    }
+
 
     @Provides
     @Singleton

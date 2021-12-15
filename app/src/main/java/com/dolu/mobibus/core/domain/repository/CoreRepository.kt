@@ -12,5 +12,5 @@ interface CoreRepository {
     suspend fun getActiveUser(): StateFlow<User>
     suspend fun addBusTicketToCart(ticket: BusTicket): User
     suspend fun removeBusTicketFromCart(ticket: BusTicket): User
-
+    suspend fun clearUserCart(): User
 }

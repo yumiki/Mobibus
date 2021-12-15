@@ -110,4 +110,21 @@ class CoreRepositoryImpl @Inject constructor(
         //TODO maybe better to throw exception if we don't find the user in database
         return userDao.getUserById(userToUpdate.id)?.toUser()?: userToUpdate
     }
+
+    override suspend fun clearUserCart(): User {
+        val activeUser = getActiveUser().value
+
+        val userToUpdate = activeUser.copy(
+            id = activeUser.id,
+            purchasedTicket = activeUser.purchasedTicket,
+            cart = emptyList(),
+            transactions = activeUser.transactions
+        )
+
+        userDao.deleteUser(userToUpdate.id)
+        userDao.insertUser(userToUpdate.toEntity())
+
+        //TODO maybe better to throw exception if we don't find the user in database
+        return userDao.getUserById(userToUpdate.id)?.toUser()?: userToUpdate
+    }
 }

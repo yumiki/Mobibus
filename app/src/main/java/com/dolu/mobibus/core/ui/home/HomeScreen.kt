@@ -1,5 +1,7 @@
 package com.dolu.mobibus.core.ui.home
 
+import android.app.Activity
+import android.content.ComponentName
 import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,22 +26,83 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.dolu.mobibus.core.ui.components.BusTicketCard
 import com.dolu.mobibus.core.ui.components.MobibusBottomBar
 import com.dolu.mobibus.core.ui.components.MobibusTopAppBar
-import android.content.ComponentName
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
 
+const val PAYMENT_OK = 1
+const val TAG = "HomeScreen"
 
 @Composable
 fun HomeScreen() {
     val viewModel: HomeViewModel = hiltViewModel()
     val state = viewModel.ticketInfoList.value
     val scaffoldState = rememberScaffoldState()
+    
+    val showDialog = remember {
+        mutableStateOf(false)
+    }
 
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) {
-        Log.e("HomeScreen", "Result: $it")
+        Log.v(TAG, "Result: $it")
+        when (it.resultCode) {
+            PAYMENT_OK,
+            Activity.RESULT_OK -> {
+                it.data?.extras?.let { extras ->
+                    viewModel.onEvent(HomeScreenEvent.OnPaymentResponse(extras))
+                    Log.e(TAG, "Success: $extras")
+                }
+            }
+            Activity.RESULT_CANCELED -> {
+
+            }
+        }
 
     }
 
+    LaunchedEffect(key1 = true) {
+        viewModel.eventFlow.collectLatest { event ->
+            when(event) {
+                is HomeViewModel.UIEvent.ShowPaymentTicket -> {
+                    viewModel.onEvent(HomeScreenEvent.NewPaymentTicketAvailable(event.message))
+                    showDialog.value = true
+                }
+                is HomeViewModel.UIEvent.ShowSnackbar -> {
+                    scaffoldState.snackbarHostState.showSnackbar(
+                        message = event.message
+                    )
+                }
+                is HomeViewModel.UIEvent.ValidateOrder -> {
+
+                }
+            }
+        }
+    }
+
     Box {
+
+        if (showDialog.value) {
+            val ticket = viewModel.paymentTicket.value
+            AlertDialog(
+                onDismissRequest = { showDialog.value = false },
+                title = {
+                    Text(text = "Payment Ticket ${ticket.transactionId}")
+                },
+                text = {
+                    Text(text = ticket.content)
+                },
+                confirmButton = {
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            showDialog.value = false
+                        }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
+        
         Scaffold(
             topBar = { MobibusTopAppBar() },
             scaffoldState = scaffoldState,
